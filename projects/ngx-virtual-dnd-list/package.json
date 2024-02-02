@@ -1,0 +1,34 @@
+{
+    "name": "ngx-virtual-dnd-list",
+    "version": "13.0.0",
+    "description": "A virtual scrolling list component that can be sorted by dragging",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/mfuu/ngx-virtual-dnd-list.git"
+    },
+    "keywords": [
+      "virtual scroll",
+      "scroll",
+      "ngx",
+      "angular",
+      "angular 13",
+      "angular 14",
+      "angular 15",
+      "angular 16",
+      "angular 17"
+    ],
+    "author": "mfuu",
+    "license": "MIT",
+    "private": false,
+    "bugs": {
+      "url": "https://github.com/mfuu/ngx-virtual-dnd-list/issues"
+    },
+    "homepage": "https://github.com/mfuu/ngx-virtual-dnd-list#readme",
+    "peerDependencies": {
+      "@angular/common": "^13.3.0",
+      "@angular/core": "^13.3.0"
+    },
+    "dependencies": {
+      "sortable-dnd": "0.6.3"
+    }
+  }
