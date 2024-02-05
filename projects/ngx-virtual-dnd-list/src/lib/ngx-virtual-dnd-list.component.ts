@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import Dnd, { Group, SortableEvent } from 'sortable-dnd';
-import { debounce, throttle, getDataKey } from './utils';
 import {
   CACLTYPE,
   SCROLL_DIRECTION,
@@ -21,6 +20,7 @@ import {
   offsetType,
   SortableAttributes,
 } from './constant';
+import { debounce, throttle, getDataKey } from './utils';
 
 interface Range {
   start: number;
@@ -33,19 +33,20 @@ interface CalcSize {
   average: number;
   total: number;
   fixed: number;
-  header: number;
 }
 
 @Component({
   selector: 'virtual-dnd-list',
   template: `
-    <ng-content select="header"></ng-content>
     <virtual-dnd-list-item
-      *ngFor="let item of model.slice(range.start, range.end + 1); index as i"
-      [sizeKey]="itemSizeKey"
-      [dataKey]="getItemKey(item)"
-      [attr.data-key]="getItemKey(item)"
-      [ngStyle]="getItemStyle(item)"
+      *ngFor="
+        let item of model.slice(range.start, range.end + 1);
+        index as i;
+        trackBy: trackByFn
+      "
+      [source]="item"
+      [dataKey]="dataKey"
+      [sizeKey]="isHorizontal ? 'offsetWidth' : 'offsetHeight'"
       (sizeChange)="onSizeChange($event)"
     >
       <ng-container
@@ -55,7 +56,6 @@ interface CalcSize {
         "
       ></ng-container>
     </virtual-dnd-list-item>
-    <ng-content select="footer"></ng-content>
   `,
   host: {
     '[class.horizontal]': 'isHorizontal',
@@ -64,11 +64,6 @@ interface CalcSize {
     `
       :host {
         display: block;
-        overflow: hidden auto;
-      }
-
-      :host.horizontal {
-        overflow: auto hidden;
       }
     `,
   ],
@@ -84,81 +79,117 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
   @Input() keepOffset: boolean = false;
   @Input() size: number;
   @Input() keeps: number = 30;
-  @Input() scroller: any;
   @Input() direction: 'vertical' | 'horizontal' = 'vertical';
-  @Input() debounceTime: number = 5;
-  @Input() throttleTime: number = 0;
+
+  private _debounceTime: number;
+  public get debounceTime() {
+    return this._debounceTime;
+  }
+  public set debounceTime(val: number) {
+    this._debounceTime = val;
+    this.updateOnScrollFunction();
+  }
+
+  private _throttleTime: number;
+  public get throttleTime() {
+    return this._throttleTime;
+  }
+  public set throttleTime(val: number) {
+    this._throttleTime = val;
+    this.updateOnScrollFunction();
+  }
+
+  private _scroller: HTMLElement;
+  @Input()
+  public get scroller() {
+    return this._scroller;
+  }
+  public set scroller(val: HTMLElement) {
+    this._scroller = val;
+    this.updateScrollElement();
+    this.removeScrollEventListener();
+    this.addScrollEventListener();
+  }
 
   @Input() delay: number;
-  @Input() group: Group;
+  @Input() group: string | Group;
   @Input() handle: any;
   @Input() dataKey: string;
-  @Input() disabled: boolean;
+  @Input() disabled: boolean = false;
   @Input() draggable: string = 'virtual-dnd-list-item';
   @Input() animation: number = 150;
-  @Input() autoScroll: boolean;
-  @Input() ghostClass: string;
+  @Input() autoScroll: boolean = true;
+  @Input() ghostClass: string = '';
   @Input() ghostStyle: CSSStyleDeclaration;
-  @Input() chosenClass: string;
-  @Input() fallbackOnBody: boolean;
-  @Input() scrollThreshold: number;
-  @Input() delayOnTouchOnly: boolean;
+  @Input() chosenClass: string = '';
+  @Input() fallbackOnBody: boolean = false;
+  @Input() scrollThreshold: number = 55;
+  @Input() delayOnTouchOnly: boolean = false;
 
   @Output() onDrag = new EventEmitter();
   @Output() onDrop = new EventEmitter();
   @Output() onAdd = new EventEmitter();
   @Output() onRemove = new EventEmitter();
-  @Output() top = new EventEmitter();
-  @Output() bottom = new EventEmitter();
+  @Output() onTop = new EventEmitter();
+  @Output() onBottom = new EventEmitter();
 
   @ContentChild(TemplateRef) listItemTemplateRef: any;
   @ContentChild('container', { read: ElementRef, static: false })
   protected containerElementRef: ElementRef;
 
-  protected timer: NodeJS.Timeout;
-  protected start: number = 0;
-  protected uniqueKeys: any[] = [];
-
-  private _model: any[] = [];
-  private onTouchedCallbackFn = (_: any) => {};
-  private onChangeCallbackFn = (_: any) => {};
-
-  public get model() {
-    return this._model;
-  }
-  public set model(val) {
-    this._model = val;
-    this.onChangeCallbackFn(val);
-  }
-
   public get isHorizontal() {
     return this.direction === 'horizontal';
   }
 
-  public get itemSizeKey() {
-    return this.isHorizontal ? 'offsetWidth' : 'offsetHeight';
+  public get scrollingFront() {
+    return this.scrollDirection === SCROLL_DIRECTION.FRONT;
   }
 
-  public getSize(key: any) {
+  public get scrollingBehind() {
+    return this.scrollDirection === SCROLL_DIRECTION.BEHIND;
+  }
+
+  /**
+   * Get the size of the current item by data key
+   * @param key data-key
+   */
+  public getSize(key: any): number {
     return this.sizes.get(key) || this.getItemSize();
   }
 
-  public getOffset() {
+  /**
+   * Get the current scroll height
+   */
+  public getOffset(): number {
     return this.scrollEl[scrollType[this.direction]];
   }
 
-  public getScrollSize() {
+  /**
+   * Get all scroll size (scrollHeight or scrollWidth)
+   */
+  public getScrollSize(): number {
     return this.scrollEl[scrollSize[this.direction]];
   }
 
-  public getClientSize() {
+  /**
+   * Get the scroller's client viewport size (width or height)
+   */
+  public getClientSize(): number {
     return this.scrollEl[offsetSize[this.direction]];
   }
 
+  /**
+   * Scroll to the specified offset left/top
+   * @param offset 
+   */
   public scrollToOffset(offset: number) {
     this.scrollEl[scrollType[this.direction]] = offset;
   }
 
+  /**
+   * Scroll to the specified index position
+   * @param index 
+   */
   public scrollToIndex(index: number) {
     if (index >= this.uniqueKeys.length - 1) {
       this.scrollToBottom();
@@ -168,6 +199,9 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     }
   }
 
+  /**
+   * Scroll to bottom of list
+   */
   public scrollToBottom() {
     const offset = this.getScrollSize();
     this.scrollToOffset(offset);
@@ -195,28 +229,19 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.sortable.destroy();
   }
 
-  getItemKey(item) {
-    return getDataKey(item, this.dataKey);
+  private _model: any[] = [];
+  private onModelTouched = (_: any) => {};
+  private onModelChange = (_: any) => {};
+
+  public get model() {
+    return this._model;
+  }
+  public set model(val) {
+    this._model = val;
+    this.onModelChange(val);
   }
 
-  getItemStyle(item) {
-    const fromKey = Dnd.dragged?.getAttribute('data-key');
-    const itemKey = this.getItemKey(item);
-    if (itemKey == fromKey) {
-      return { display: 'none' };
-    }
-    return {};
-  }
-
-  updateUniqueKeys() {
-    this.uniqueKeys = this._model.map((item) => getDataKey(item, this.dataKey));
-  }
-
-  onSizeChange({ key, size }: { key: any; size: number }) {
-    this.handleItemSizeChange(key, size);
-  }
-
-  writeValue(value: any[]): void {
+  public writeValue(value: any[]): void {
     const oldList = this._model ? [...this._model] : [];
     this._model = value || [];
 
@@ -240,15 +265,23 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     }
   }
 
-  registerOnChange(fn: (_: any) => void): void {
-    this.onChangeCallbackFn = fn;
+  public registerOnChange(fn: (_: any) => void): void {
+    this.onModelChange = fn;
   }
 
-  registerOnTouched(fn: (_: any) => void): void {
-    this.onTouchedCallbackFn = fn;
+  public registerOnTouched(fn: (_: any) => void): void {
+    this.onModelTouched = fn;
   }
 
-  protected detectRangeUpdate(oldList: any[], newList: any[]) {
+  public trackByFn = (_: number, item: any) => {
+    return getDataKey(item, this.dataKey);
+  };
+
+  private timer: NodeJS.Timeout;
+  private start: number = 0;
+  private uniqueKeys: any[] = [];
+
+  private detectRangeUpdate(oldList: any[], newList: any[]) {
     let range = { ...this.range };
     if (this.range.start > 0) {
       const index = newList.indexOf(oldList[this.range.start]);
@@ -268,19 +301,19 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.updateRange(range);
   }
 
-  protected scrolledToBottom() {
+  private scrolledToBottom() {
     const offset = this.getOffset();
     const clientSize = this.getClientSize();
     const scrollSize = this.getScrollSize();
     return offset + clientSize + 1 >= scrollSize;
   }
 
-  protected sortable: Dnd;
-  protected sortableStore: any = {};
-  protected sortableList: any[] = [];
-  protected reRendered: boolean = false;
+  private sortable: Dnd;
+  private sortableStore: any = {};
+  private sortableList: any[] = [];
+  private reRendered: boolean = false;
 
-  protected initSortable() {
+  private initSortable() {
     let props = {};
     for (let i = 0; i < SortableAttributes.length; i++) {
       let key = SortableAttributes[i];
@@ -298,7 +331,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     });
   }
 
-  protected onSortableDrag(params: SortableEvent) {
+  private onSortableDrag(params: SortableEvent) {
     const key = params.node.getAttribute('data-key');
     const index = this.getIndex(this.sortableList, key);
     const item = this.sortableList[index];
@@ -316,7 +349,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.start = this.range.start;
   }
 
-  protected onSortableAdd(params: SortableEvent) {
+  private onSortableAdd(params: SortableEvent) {
     const { from, target, relative } = params;
     const { key, item } = Dnd.get(from).option('store');
 
@@ -342,7 +375,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.onAdd.emit({ item, key, index });
   }
 
-  protected onSortableRemove(params: SortableEvent) {
+  private onSortableRemove(params: SortableEvent) {
     const key = params.node.getAttribute('data-key');
     const index = this.getIndex(this.sortableList, key);
     const item = this.sortableList[index];
@@ -355,7 +388,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.onRemove.emit({ item, key, index });
   }
 
-  protected onSortableChange(params: SortableEvent) {
+  private onSortableChange(params: SortableEvent) {
     const store = Dnd.get(params.from).option('store');
 
     if (params.revertDrag) {
@@ -405,7 +438,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     });
   }
 
-  protected onSortableDrop(params: SortableEvent) {
+  private onSortableDrop(params: SortableEvent) {
     const { from, to } = this.getStore(params);
     const changed =
       params.from !== params.to || from.origin.index !== to.to.index;
@@ -417,6 +450,8 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
       this.range.front += Dnd.clone[offsetSize[this.direction]];
       this.start = this.range.start;
     }
+    this.writeValue(this.sortableList);
+    this.onModelChange(this.sortableList);
 
     this.onDrop.emit({
       changed,
@@ -437,7 +472,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.reRendered = false;
   }
 
-  protected getIndex(list: any[], key: any) {
+  private getIndex(list: any[], key: any) {
     for (let i = 0; i < list.length; i++) {
       if (getDataKey(list[i], this.dataKey) == key) {
         return i;
@@ -446,7 +481,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     return -1;
   }
 
-  protected getStore(params: SortableEvent) {
+  private getStore(params: SortableEvent) {
     return {
       from: Dnd.get(params.from)?.option('store'),
       to: Dnd.get(params.to)?.option('store'),
@@ -454,47 +489,46 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
   }
 
   public range: Range = { start: 0, end: this.keeps - 1, front: 0, behind: 0 };
-  protected sizes: Map<any, number> = new Map();
-  protected offset: number = 0;
-  protected calcType: string = CACLTYPE.INIT;
-  protected calcSize: CalcSize = { average: 0, total: 0, fixed: 0, header: 0 };
-  protected scrollEl: HTMLElement;
-  protected lastLength: number = 0;
-  protected scrollDirection: string = '';
-  protected useWindowScroll: boolean = false;
+  private sizes: Map<any, number> = new Map();
+  private offset: number = 0;
+  private calcType: string = CACLTYPE.INIT;
+  private calcSize: CalcSize = { average: 0, total: 0, fixed: 0 };
+  private scrollEl: HTMLElement;
+  private lastLength: number = 0;
+  private scrollDirection: string = '';
+  private useWindowScroll: boolean = false;
 
-  protected initVirtual() {
-    this.updateScrollElement();
+  public onSizeChange({ key, size }: { key: any; size: number }) {
+    this.handleItemSizeChange(key, size);
+  }
+
+  private initVirtual() {
     this.updateOnScrollFunction();
     this.addScrollEventListener();
     this.checkIfUpdate(0, this.keeps - 1);
   }
 
-  protected scrollingFront() {
-    return this.scrollDirection === SCROLL_DIRECTION.FRONT;
-  }
-
-  protected scrollingBehind() {
-    return this.scrollDirection === SCROLL_DIRECTION.BEHIND;
-  }
-
-  protected isFixedItemSize() {
+  private get isFixedItemSize() {
     return this.calcType === CACLTYPE.FIXED;
   }
 
-  protected updateScrollElement() {
+  private updateUniqueKeys() {
+    this.uniqueKeys = this._model.map((item) => getDataKey(item, this.dataKey));
+  }
+
+  private updateScrollElement() {
     this.scrollEl = this.getScrollElement(this.scroller);
   }
 
-  protected addScrollEventListener() {
+  private addScrollEventListener() {
     this.scroller?.addEventListener('scroll', this.onScroll, false);
   }
 
-  protected removeScrollEventListener() {
+  private removeScrollEventListener() {
     this.scroller?.removeEventListener('scroll', this.onScroll);
   }
 
-  protected updateRange(range?: Range) {
+  private updateRange(range?: Range) {
     if (range) {
       this.handleUpdate(range.start, range.end);
       return;
@@ -506,20 +540,13 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.handleUpdate(start, this.getEndByStart(start));
   }
 
-  protected handleSlotSizeChange<K extends keyof CalcSize>(
-    key: K,
-    size: number
-  ) {
-    this.calcSize[key] = size;
-  }
-
-  protected handleItemSizeChange(key: any, size: number) {
+  private handleItemSizeChange(key: any, size: number) {
     this.sizes.set(key, size);
 
     if (this.calcType === CACLTYPE.INIT) {
       this.calcType = CACLTYPE.FIXED;
       this.calcSize.fixed = size;
-    } else if (this.isFixedItemSize() && this.calcSize.fixed !== size) {
+    } else if (this.isFixedItemSize && this.calcSize.fixed !== size) {
       this.calcType = CACLTYPE.DYNAMIC;
       this.calcSize.fixed = 0;
     }
@@ -530,8 +557,8 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     }
   }
 
-  protected onScroll: () => void;
-  protected updateOnScrollFunction() {
+  private onScroll: () => void;
+  private updateOnScrollFunction() {
     if (this.debounceTime) {
       this.onScroll = debounce(() => this.handleScroll(), this.debounceTime);
     } else if (this.throttleTime) {
@@ -541,7 +568,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     }
   }
 
-  protected handleScroll() {
+  private handleScroll() {
     const offset = this.getOffset();
     const clientSize = this.getClientSize();
     const scrollSize = this.getScrollSize();
@@ -555,8 +582,8 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
 
     this.offset = offset;
 
-    const top = this.scrollingFront() && offset <= 0;
-    const bottom = this.scrollingBehind() && clientSize + offset >= scrollSize;
+    const top = this.scrollingFront && offset <= 0;
+    const bottom = this.scrollingBehind && clientSize + offset >= scrollSize;
 
     this.lastLength = 0;
     if (!!this._model.length && top) {
@@ -565,23 +592,23 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
       this.handleToBottom();
     }
 
-    if (this.scrollingFront()) {
+    if (this.scrollingFront) {
       this.handleScrollFront();
-    } else if (this.scrollingBehind()) {
+    } else if (this.scrollingBehind) {
       this.handleScrollBehind();
     }
   }
 
-  protected handleToTop = debounce(() => {
-    this.top.emit();
+  private handleToTop = debounce(() => {
+    this.onTop.emit();
     this.lastLength = this._model.length;
   }, 50);
 
-  protected handleToBottom = debounce(() => {
-    this.bottom.emit();
+  private handleToBottom = debounce(() => {
+    this.onBottom.emit();
   }, 50);
 
-  protected handleScrollFront() {
+  private handleScrollFront() {
     const scrolls = this.getScrollItems();
 
     if (scrolls > this.range.start) {
@@ -592,7 +619,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.checkIfUpdate(start, this.getEndByStart(start));
   }
 
-  protected handleScrollBehind() {
+  private handleScrollBehind() {
     const scrolls = this.getScrollItems();
 
     if (scrolls < this.range.start + Math.round(this.keeps / 3)) {
@@ -602,14 +629,14 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.checkIfUpdate(scrolls, this.getEndByStart(scrolls));
   }
 
-  protected getScrollItems() {
+  private getScrollItems() {
     const offset = this.offset - this.getScrollStartOffset();
 
     if (offset <= 0) {
       return 0;
     }
 
-    if (this.isFixedItemSize()) {
+    if (this.isFixedItemSize) {
       return Math.floor(offset / this.calcSize.fixed);
     }
 
@@ -633,7 +660,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     return low > 0 ? --low : 0;
   }
 
-  protected checkIfUpdate(start: number, end: number) {
+  private checkIfUpdate(start: number, end: number) {
     const keeps = this.keeps;
     const total = this.uniqueKeys.length;
 
@@ -649,43 +676,42 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     }
   }
 
-  protected handleUpdate(start: number, end: number) {
-    let range = Object.create(null);
-    range.start = start;
-    range.end = end;
-    range.front = this.getFrontOffset();
-    range.behind = this.getBehindOffset();
+  private handleUpdate(start: number, end: number) {
+    let _range = { ...this.range };
+    this.range.start = start;
+    this.range.end = end;
+    this.range.front = this.getFrontOffset();
+    this.range.behind = this.getBehindOffset();
 
-    if (range.start !== this.range.start && Dnd.dragged) {
+    if (_range.start !== this.range.start && Dnd.dragged) {
       this.reRendered = true;
     }
 
-    this.range = range;
     this.el.nativeElement.style['padding'] = this.isHorizontal
       ? `0 ${this.range.behind}px 0 ${this.range.front}px`
       : `${this.range.front}px 0 ${this.range.behind}px`;
   }
 
-  protected getFrontOffset() {
-    if (this.isFixedItemSize()) {
+  private getFrontOffset() {
+    if (this.isFixedItemSize) {
       return this.calcSize.fixed * this.range.start;
     } else {
       return this.getOffsetByIndex(this.range.start);
     }
   }
 
-  protected getBehindOffset() {
+  private getBehindOffset() {
     const end = this.range.end;
     const last = this.getLastIndex();
 
-    if (this.isFixedItemSize()) {
+    if (this.isFixedItemSize) {
       return (last - end) * this.calcSize.fixed;
     }
 
     return (last - end) * this.getItemSize();
   }
 
-  protected getOffsetByIndex(index: number) {
+  private getOffsetByIndex(index: number) {
     if (!index) return 0;
 
     let offset = 0;
@@ -697,22 +723,23 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     return offset;
   }
 
-  protected getEndByStart(start: number) {
+  private getEndByStart(start: number) {
     return Math.min(start + this.keeps - 1, this.getLastIndex());
   }
 
-  protected getLastIndex() {
-    const { uniqueKeys, keeps } = this;
-    return uniqueKeys.length > 0 ? uniqueKeys.length - 1 : keeps - 1;
+  private getLastIndex() {
+    return this.uniqueKeys.length > 0
+      ? this.uniqueKeys.length - 1
+      : this.keeps - 1;
   }
 
-  protected getItemSize() {
-    return this.isFixedItemSize()
+  private getItemSize() {
+    return this.isFixedItemSize
       ? this.calcSize.fixed
       : this.calcSize.average || this.size;
   }
 
-  protected getScrollElement(scroller: any) {
+  private getScrollElement(scroller: any) {
     if (
       (scroller instanceof Document && scroller.nodeType === 9) ||
       scroller instanceof Window
@@ -728,8 +755,8 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     return scroller;
   }
 
-  protected getScrollStartOffset() {
-    let offset = this.calcSize.header;
+  private getScrollStartOffset() {
+    let offset = 0;
     if (this.useWindowScroll && this.el.nativeElement) {
       let el = this.el.nativeElement;
       do {
