@@ -4,8 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
-    "build:prod": "ng-packagr -p ./projects/ngx-virtual-dnd-list/ng-package.json",
+    "build": "ng-packagr -p ./projects/ngx-virtual-dnd-list/ng-package.json",
+    "publish": "npm run build && npm publish ./dist/ngx-virtual-dnd-list",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

@@ -1,6 +1,6 @@
 # ngx-virtual-dnd-list
 
-[![npm](https://img.shields.io/npm/v/ngx-virtual-dnd-list.svg)](https://www.npmjs.com/package/ngx-virtual-dnd-list)  [![npm](https://img.shields.io/npm/dm/ngx-virtual-dnd-list.svg)](https://www.npmjs.com/package/ngx-virtual-dnd-list)  [![vue2](https://img.shields.io/badge/vue-2.x-brightgreen.svg)](https://vuejs.org/)  [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/ngx-virtual-dnd-list.svg)](https://www.npmjs.com/package/ngx-virtual-dnd-list)  [![npm](https://img.shields.io/npm/dm/ngx-virtual-dnd-list.svg)](https://www.npmjs.com/package/ngx-virtual-dnd-list)  [![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 
 A virtual scrolling list component that can be sorted by dragging
 
