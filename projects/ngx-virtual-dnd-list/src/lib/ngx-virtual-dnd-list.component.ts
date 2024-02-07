@@ -2,6 +2,8 @@ import {
   Input,
   Output,
   OnInit,
+  OnChanges,
+  OnDestroy,
   Component,
   forwardRef,
   ElementRef,
@@ -75,7 +77,7 @@ interface CalcSize {
     },
   ],
 })
-export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
+export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, ControlValueAccessor {
   @Input() keepOffset: boolean = false;
   @Input() size: number;
   @Input() keeps: number = 30;
@@ -180,7 +182,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
 
   /**
    * Scroll to the specified offset left/top
-   * @param offset 
+   * @param offset
    */
   public scrollToOffset(offset: number) {
     this.scrollEl[scrollType[this.direction]] = offset;
@@ -188,7 +190,7 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
 
   /**
    * Scroll to the specified index position
-   * @param index 
+   * @param index
    */
   public scrollToIndex(index: number) {
     if (index >= this.uniqueKeys.length - 1) {
@@ -224,6 +226,14 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     this.initSortable();
   }
 
+  ngOnChanges(changes): void {
+    SortableAttributes.forEach((key: any) => {
+      if (key in changes) {
+        this.sortable?.option(key, this[key]);
+      }
+    });
+  }
+
   ngOnDestroy(): void {
     this.removeScrollEventListener();
     this.sortable.destroy();
@@ -242,12 +252,34 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
   }
 
   public writeValue(value: any[]): void {
-    const oldList = this._model ? [...this._model] : [];
     this._model = value || [];
 
+    this.refresh();
+
+    this.lastList = [...this._model];
+  }
+
+  public registerOnChange(fn: (_: any) => void): void {
+    this.onModelChange = fn;
+  }
+
+  public registerOnTouched(fn: (_: any) => void): void {
+    this.onModelTouched = fn;
+  }
+
+  public trackByFn = (_: number, item: any) => {
+    return getDataKey(item, this.dataKey);
+  };
+
+  private timer: NodeJS.Timeout;
+  private start: number = 0;
+  private lastList: any[] = [];
+  private uniqueKeys: any[] = [];
+
+  private refresh() {
     this.updateUniqueKeys();
     if (this.sizes.size) {
-      this.detectRangeUpdate(oldList, this._model);
+      this.detectRangeUpdate();
     } else {
       clearTimeout(this.timer);
       this.timer = setTimeout(() => this.updateRange(), 17);
@@ -265,34 +297,18 @@ export class VirtualDndListComponent implements OnInit, ControlValueAccessor {
     }
   }
 
-  public registerOnChange(fn: (_: any) => void): void {
-    this.onModelChange = fn;
-  }
-
-  public registerOnTouched(fn: (_: any) => void): void {
-    this.onModelTouched = fn;
-  }
-
-  public trackByFn = (_: number, item: any) => {
-    return getDataKey(item, this.dataKey);
-  };
-
-  private timer: NodeJS.Timeout;
-  private start: number = 0;
-  private uniqueKeys: any[] = [];
-
-  private detectRangeUpdate(oldList: any[], newList: any[]) {
+  private detectRangeUpdate() {
     let range = { ...this.range };
     if (this.range.start > 0) {
-      const index = newList.indexOf(oldList[this.range.start]);
+      const index = this._model.indexOf(this.lastList[this.range.start]);
       if (index > -1) {
         range.start = index;
         range.end = index + this.keeps - 1;
       }
     }
     if (
-      newList.length > oldList.length &&
-      this.range.end === oldList.length - 1 &&
+      this._model.length > this.lastList.length &&
+      this.range.end === this.lastList.length - 1 &&
       this.scrolledToBottom()
     ) {
       range.end++;
