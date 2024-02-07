@@ -98,7 +98,7 @@ export class AppComponent {
 | `keeps`      | `Number`   | `30`        | The number of lines rendered by the virtual scroll |
 | `size`       | `Number`   | `-`         | The estimated height of each piece of data, you can choose to pass it or not, it will be automatically calculated |
 | `handle`     | `Function/String` | `-`  | Drag handle selector within list items |
-| `group`      | `Function/String` | `-`  | string: 'name' or object: `{ name: 'group', put: true/false, pull: true/false/'clone', revertDrag: true/false }` |
+| `group`      | `Object/String` | `-`  | string: 'name' or object: `{ name: 'group', put: true/false, pull: true/false/'clone', revertDrag: true/false }` |
 | `keepOffset` | `Boolean`  | `false`     | When scrolling up to load data, keep the same offset as the previous scroll |
 | `direction`  | `String`   | `vertical`  | `vertical/horizontal`, scroll direction |
 | `scroller`   | `HTMLElement` | `-`      | Virtual list scrolling element |
