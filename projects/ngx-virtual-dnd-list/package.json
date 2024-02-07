@@ -7,15 +7,18 @@
     "url": "git+https://github.com/mfuu/ngx-virtual-dnd-list.git"
   },
   "keywords": [
-    "virtual scroll",
-    "scroll",
     "ngx",
     "angular",
-    "angular 13",
-    "angular 14",
-    "angular 15",
-    "angular 16",
-    "angular 17"
+    "sort",
+    "drag",
+    "drop",
+    "draggable",
+    "sortable",
+    "virtual",
+    "virtual-list",
+    "big-data",
+    "big-list",
+    "infinite"
   ],
   "author": "mfuu",
   "license": "MIT",
