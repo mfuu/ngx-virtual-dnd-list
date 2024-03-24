@@ -27,7 +27,7 @@ import { VirtualDndListModule } from 'ngx-virtual-dnd-list';
   ],
   providers: []
 })
-export class VirtualListModule { }
+export class VirtualListModule {}
 ```
 
 **`virutal-list.component.ts`**
@@ -46,8 +46,8 @@ import { Component } from '@angular/core';
         (ngModelChange)="onChange($event)"
       >
         <ng-template let-data let-index>
-          <td>{{ data.index }}</td>
-          <td>{{ data.id }}</td>
+          <span>{{ data.index }}</span>
+          <p>{{ data.id }}</p>
         </ng-template>
       </virtual-dnd-list>
     </div>
@@ -63,7 +63,7 @@ export class AppComponent {
   ];
 
   onChange(data) {
-    console.log(data, 'triggered on drop');
+    // the data changes after the dragging ends
   }
 }
 
@@ -71,14 +71,12 @@ export class AppComponent {
 
 ## EventEmitters
 
-|   **Event**   | **Description** |
+|   **Event**  | **Description** |
 |--------------|-----------------|
-| `onTop`        | Event fired when scroll to top |
-| `onBottom`     | Event fired when scroll to bottom |
-| `onDrag`     | Event fired when the drag is started |
-| `onDrop`     | Event fired when the drag is completed |
-| `onAdd`      | Event fired when element is dropped into the list from another |
-| `onRemove`   | Event fired when element is removed from the list into another |
+| `onTop`      | scrolled to top |
+| `onBottom`   | scrolled to bottom |
+| `onDrag`     | the drag is started |
+| `onDrop`     | the drag is completed |
 
 ## Attributes
 
@@ -87,23 +85,23 @@ export class AppComponent {
 | **Prop** | **Type**  | **Description** |
 |------------------|-------------|------------------|
 | `data-key`       | `String`      | The unique identifier of each piece of data, in the form of `'a.b.c'` |
-| `scroller`       | `HTMLElement \| Window \| Document` | Virtual list scrolling element |
+| `scroller`       | `HTMLElement \| Document` | Virtual list scrolling element |
 
 ### Optional Attributes
 
 **Commonly used**
 
-|   **Prop**   |  **Type**  | **Default** | **Description** |
-| ------------ | ---------  | ----------- | --------------- |
-| `keeps`      | `Number`   | `30`        | The number of lines rendered by the virtual scroll |
-| `size`       | `Number`   | `-`         | The estimated height of each piece of data, you can choose to pass it or not, it will be automatically calculated |
-| `handle`     | `Function/String` | `-`  | Drag handle selector within list items |
-| `group`      | `Object/String` | `-`  | string: 'name' or object: `{ name: 'group', put: true/false, pull: true/false/'clone', revertDrag: true/false }` |
-| `keepOffset` | `Boolean`  | `false`     | When scrolling up to load data, keep the same offset as the previous scroll |
-| `direction`  | `String`   | `vertical`  | `vertical/horizontal`, scroll direction |
-| `scroller`   | `HTMLElement` | `-`      | Virtual list scrolling element |
-| `debounceTime`| `Number`  | `0`         | debounce time on scroll |
-| `throttleTime`| `Number`  | `0`         | throttle time on scroll |
+|   **Prop**   |  **Type**  | **Default**  | **Description** |
+| ------------ | ---------  | ------------ | --------------- |
+| `keeps`      | `Number`   | `30`         | The number of lines rendered by the virtual scroll |
+| `size`       | `Number`   | `-`          | The estimated height of each piece of data, you can choose to pass it or not, it will be automatically calculated |
+| `handle`     | `Function/String` | `-`   | Drag handle selector within list items |
+| `group`      | `Object/String` | `-`     | string: 'name' or object: `{ name: 'group', put: true/false, pull: true/false/'clone', revertDrag: true/false }` |
+| `keepOffset` | `Boolean`  | `false`      | When scrolling up to load data, keep the same offset as the previous scroll |
+| `direction`  | `vertical \| horizontal`| | scroll direction |
+| `lockAxis`   | `x \| y`   | `-`          | Axis on which dragging will be locked |
+| `debounceTime`| `Number`  | `0`          | debounce time on scroll |
+| `throttleTime`| `Number`  | `0`          | throttle time on scroll |
 
 
 **Uncommonly used**
@@ -111,6 +109,7 @@ export class AppComponent {
 |  **Prop**    | **Type**   | **Default** | **Description** |
 |  --------    | --------   | ----------- | --------------- |
 | `draggable`  | `String`   | `-`         | Specifies which items inside the element should be draggable. If does not set a value, the default list element can be dragged |
+| `sortable`   | `Boolean`  | `true`      | Allow Sorting by Dragging |
 | `disabled`   | `Boolean`  | `false`     | Disables the sortable if set to true |
 | `animation`  | `Number`   | `150`       | Animation speed moving items when sorting |
 | `autoScroll` | `Boolean`  | `true`      | Automatic scrolling when moving to the edge of the container |
@@ -164,12 +163,4 @@ export class VirtualListComponent {
     this.virtualList.scrollToBottom();
   }
 }
-```
-
-## ⚠️The source data is changed but the view is not changed?
-
-```ts
-list.push(something)
-// change to
-list = [...list, something]
 ```

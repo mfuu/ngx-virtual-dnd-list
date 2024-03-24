@@ -1,39 +1,32 @@
+/* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
-  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
-  "version": 1,
-  "newProjectRoot": "projects",
-  "projects": {
-    "ngx-virtual-dnd-list": {
-      "projectType": "library",
-      "root": "projects/ngx-virtual-dnd-list",
-      "sourceRoot": "projects/ngx-virtual-dnd-list/src",
-      "prefix": "lib",
-      "architect": {
-        "build": {
-          "builder": "@angular-devkit/build-angular:ng-packagr",
-          "options": {
-            "project": "projects/ngx-virtual-dnd-list/ng-package.json"
-          },
-          "configurations": {
-            "production": {
-              "tsConfig": "projects/ngx-virtual-dnd-list/tsconfig.lib.prod.json"
-            },
-            "development": {
-              "tsConfig": "projects/ngx-virtual-dnd-list/tsconfig.lib.json"
-            }
-          },
-          "defaultConfiguration": "production"
-        },
-        "test": {
-          "builder": "@angular-devkit/build-angular:karma",
-          "options": {
-            "main": "projects/ngx-virtual-dnd-list/src/test.ts",
-            "tsConfig": "projects/ngx-virtual-dnd-list/tsconfig.spec.json",
-            "karmaConfig": "projects/ngx-virtual-dnd-list/karma.conf.js"
-          }
-        }
-      }
-    }
+  "compileOnSave": false,
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist/out-tsc",
+    "forceConsistentCasingInFileNames": true,
+    "strict": false,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "sourceMap": true,
+    "declaration": false,
+    "downlevelIteration": true,
+    "experimentalDecorators": true,
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "target": "es2017",
+    "module": "es2020",
+    "lib": [
+      "es2020",
+      "dom"
+    ]
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
   }
 }
-  

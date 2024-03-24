@@ -1,44 +1,45 @@
-export function debounce(fn: Function, delay = 0, immediate = false) {
-  let timer: any | undefined;
-  let result: Function;
-  const debounced = function (this: any, ...args: any) {
-    if (timer) clearTimeout(timer);
-    if (immediate) {
-      const callNow = !timer;
-      timer = setTimeout(() => {
-        timer = null;
-      }, delay);
-      if (callNow) result = fn.apply(this, args);
+export function throttle(fn: Function, wait: number): Function {
+  let timer = null;
+
+  const result = function (...args) {
+    if (timer) return;
+
+    if (wait <= 0) {
+      fn.apply(this, args);
     } else {
       timer = setTimeout(() => {
+        timer = undefined;
         fn.apply(this, args);
-      }, delay);
-    }
-    return result;
-  };
-  debounced.prototype.cancel = function () {
-    clearTimeout(timer);
-    timer = null;
-  };
-  return debounced;
-}
-
-export function throttle(fn: Function, delay = 0) {
-  let timer: any | undefined;
-  return function (this: any, ...args: IArguments[]) {
-    if (!timer) {
-      timer = setTimeout(function () {
-        timer = null;
-        fn.apply(this, args);
-      }, delay);
+      }, wait);
     }
   };
+  result["cancel"] = function () {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  return result;
 }
 
-export function getDataKey(item: any, dataKey: string) {
+export function debounce(fn: Function, wait: number): Function {
+  const throttled = throttle(fn, wait);
+  const result = function () {
+    throttled["cancel"]();
+    throttled.apply(this, arguments);
+  };
+  result["cancel"] = function () {
+    throttled["cancel"]();
+  };
+
+  return result;
+}
+
+export function getDataKey(item: any, dataKey: any) {
   return (
     !Array.isArray(dataKey)
-      ? dataKey.replace(/\[/g, '.').replace(/\]/g, '.').split('.')
+      ? dataKey.replace(/\[/g, ".").replace(/\]/g, ".").split(".")
       : dataKey
   ).reduce((o, k) => (o || {})[k], item);
 }
