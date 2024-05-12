@@ -1,6 +1,6 @@
 {
   "name": "ngx-virtual-dnd-list",
-  "version": "13.0.2",
+  "version": "13.0.3",
   "description": "A virtual scrolling list component that can be sorted by dragging",
   "repository": {
     "type": "git",
@@ -32,6 +32,6 @@
     "@angular/core": "^13.3.0"
   },
   "dependencies": {
-    "sortable-dnd": "0.6.8"
+    "sortable-dnd": "^0.6.15"
   }
 }

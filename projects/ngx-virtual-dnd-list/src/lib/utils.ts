@@ -13,7 +13,7 @@ export function throttle(fn: Function, wait: number): Function {
       }, wait);
     }
   };
-  result["cancel"] = function () {
+  result['cancel'] = function () {
     if (timer) {
       clearTimeout(timer);
       timer = null;
@@ -26,11 +26,11 @@ export function throttle(fn: Function, wait: number): Function {
 export function debounce(fn: Function, wait: number): Function {
   const throttled = throttle(fn, wait);
   const result = function () {
-    throttled["cancel"]();
+    throttled['cancel']();
     throttled.apply(this, arguments);
   };
-  result["cancel"] = function () {
-    throttled["cancel"]();
+  result['cancel'] = function () {
+    throttled['cancel']();
   };
 
   return result;
@@ -38,8 +38,6 @@ export function debounce(fn: Function, wait: number): Function {
 
 export function getDataKey(item: any, dataKey: any) {
   return (
-    !Array.isArray(dataKey)
-      ? dataKey.replace(/\[/g, ".").replace(/\]/g, ".").split(".")
-      : dataKey
+    !Array.isArray(dataKey) ? dataKey.replace(/\[/g, '.').replace(/\]/g, '.').split('.') : dataKey
   ).reduce((o, k) => (o || {})[k], item);
 }
