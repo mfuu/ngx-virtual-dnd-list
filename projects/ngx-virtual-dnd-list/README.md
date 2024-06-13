@@ -40,16 +40,16 @@ import { Component } from '@angular/core';
   selector: 'virutal-list',
   template: `
     <div #scroller>
-      <virtual-dnd-list
+      <div virtual-dnd-list
         [scroller]="scroller"
         [dataKey]="'id'"
         [keeps]="30"
         [(ngModel)]="list"
         (ngModelChange)="onChange($event)"
       >
-        <ng-template let-data let-index>
-          <span>{{ data.index }}</span>
-          <p>{{ data.id }}</p>
+        <ng-template let-data let-index="index">
+          <span>{{ index }}</span>
+          <p>{{ data.text }}</p>
         </ng-template>
       </virtual-dnd-list>
     </div>
@@ -110,7 +110,8 @@ export class AppComponent {
 
 | **Prop**           | **Type**  | **Default** | **Description**                                                                                                                |
 | ------------------ | --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `draggable`        | `String`  | `-`         | Specifies which items inside the element should be draggable. If does not set a value, the default list element can be dragged |
+| `draggable`        | `String`  | `.virtual-dnd-list-item`         | Specifies which items inside the element should be draggable. If does not set a value, the default list element can be dragged |
+| `itemClass`        | `String`  | `virtual-dnd-list-item`         | default list item class |
 | `sortable`         | `Boolean` | `true`      | Allow Sorting by Dragging                                                                                                      |
 | `disabled`         | `Boolean` | `false`     | Disables the sortable if set to true                                                                                           |
 | `animation`        | `Number`  | `150`       | Animation speed moving items when sorting                                                                                      |
@@ -146,12 +147,12 @@ import { VirtualDndListComponent } from 'ngx-virtual-dnd-list';
   selector: 'virutal-list',
   template: `
     <div #scroller>
-      <virtual-dnd-list
+      <div virtual-dnd-list
         #virtualList
         ...
       >
         ...
-      </virtual-dnd-list>
+      </div>
 
       <button (click)="scrollToBottom()">scroll to bottom</button>
     </div>

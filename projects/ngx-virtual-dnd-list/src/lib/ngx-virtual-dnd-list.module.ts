@@ -1,11 +1,11 @@
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { VirtualItem } from './ngx-virtual-dnd-item.directive';
 import { VirtualDndListComponent } from './ngx-virtual-dnd-list.component';
-import { VirtualDndListItemComponent } from './ngx-virtual-dnd-item.component';
 
 @NgModule({
-  declarations: [VirtualDndListComponent, VirtualDndListItemComponent],
+  declarations: [VirtualDndListComponent, VirtualItem],
   imports: [CommonModule, FormsModule],
   exports: [VirtualDndListComponent],
 })

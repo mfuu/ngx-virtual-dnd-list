@@ -8,31 +8,31 @@ export interface Range {
   behind: number;
 }
 
+export interface ScrollEvent {
+  top: boolean;
+  bottom: boolean;
+  offset: number;
+  direction: 'FRONT' | 'BEHIND' | 'STATIONARY';
+}
+
+interface VirtualOptions {
+  size?: number;
+  keeps?: number;
+  buffer?: number;
+  wrapper?: HTMLElement;
+  scroller?: HTMLElement | Document;
+  direction?: 'vertical' | 'horizontal';
+  uniqueKeys?: any[];
+  debounceTime?: number;
+  throttleTime?: number;
+  onScroll?: (event: ScrollEvent) => void;
+  onUpdate?: (range: Range) => void;
+}
+
 interface CalcSize {
   fixed: number;
   total: number;
   average: number;
-}
-
-interface ScrollEvent {
-  top: boolean;
-  bottom: boolean;
-  offset: number;
-  direction: DIRECTION;
-}
-
-interface Options {
-  size: number;
-  keeps: number;
-  buffer: number;
-  wrapper: HTMLElement;
-  scroller: HTMLElement | Document;
-  direction: 'vertical' | 'horizontal';
-  uniqueKeys: any[];
-  debounceTime: number;
-  throttleTime: number;
-  onScroll?: (event: ScrollEvent) => void;
-  onUpdate?: (range: Range) => void;
 }
 
 type CALCTYPE = 'INIT' | 'FIXED' | 'DYNAMIC';
@@ -78,7 +78,7 @@ class Virtual {
   calcSize: CalcSize;
   direction: DIRECTION;
   onScroll: () => void;
-  constructor(options: Options) {
+  constructor(options: VirtualOptions) {
     this.options = options;
 
     const defaults = {
@@ -417,6 +417,7 @@ class Virtual {
     let offset = 0;
 
     const { wrapper, scroller, direction } = this.options;
+    if (wrapper === scroller) return 0;
     if (scroller && wrapper) {
       const rect =
         scroller instanceof Window

@@ -2,6 +2,7 @@ import {
   Input,
   Output,
   OnInit,
+  NgZone,
   Renderer2,
   OnChanges,
   OnDestroy,
@@ -14,10 +15,11 @@ import {
   SimpleChanges,
   IterableDiffer,
   IterableDiffers,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import Dnd, { Group, SortableEvent } from 'sortable-dnd';
-import { Virtual, VirtualAttrs, Range } from './virtual';
+import { Virtual, VirtualAttrs, Range, ScrollEvent } from './virtual';
 import { debounce, getDataKey } from './utils';
 
 const SortableAttrs = [
@@ -41,37 +43,59 @@ const SortableAttrs = [
 @Component({
   selector: 'virtual-dnd-list, [virtual-dnd-list]',
   template: `
-    <div virtual-dnd-list-item
+    <ng-container *ngIf="tableMode">
+      <ng-container
+        *ngTemplateOutlet="
+          tableSpacerTemplate;
+          context: { $implicit: range.front }
+        "
+      ></ng-container>
+    </ng-container>
+
+    <ng-container
       *ngFor="
         let item of model.slice(range.start, range.end + 1);
         index as i;
         trackBy: trackByFn
       "
-      [source]="item"
-      [dataKey]="dataKey"
-      [dragging]="dragging"
-      [isHorizontal]="isHorizontal"
-      (sizeChange)="onSizeChange($event)"
     >
+      <ng-template
+        [virtualItem]="item"
+        [index]="i"
+        [dataKey]="dataKey"
+        [dragging]="dragging"
+        [itemClass]="itemClass"
+        [isHorizontal]="isHorizontal"
+        (sizeChange)="onSizeChange($event)"
+      >
+        <ng-container
+          *ngTemplateOutlet="
+            listItemTemplateRef;
+            context: { $implicit: item, index: i + range.start }
+          "
+        ></ng-container>
+      </ng-template>
+    </ng-container>
+
+    <ng-container *ngIf="tableMode">
       <ng-container
         *ngTemplateOutlet="
-          listItemTemplateRef;
-          context: { $implicit: item, index: i }
+          tableSpacerTemplate;
+          context: { $implicit: range.behind }
         "
       ></ng-container>
-    </div>
+    </ng-container>
+
+    <ng-template #tableSpacerTemplate let-offset>
+      <tr>
+        <td [ngStyle]="{ border: 0, margin: 0, padding: 0, height: offset + 'px' }"></td>
+      </tr>
+    </ng-template>
   `,
   host: {
     '[class.horizontal]': 'isHorizontal',
     '[class.vertical]': '!isHorizontal',
   },
-  styles: [
-    `
-      :host {
-        display: block;
-      }
-    `,
-  ],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -81,11 +105,12 @@ const SortableAttrs = [
   ],
 })
 export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, ControlValueAccessor {
-  @Input() keepOffset: boolean = false;
   @Input() size: number;
   @Input() keeps: number = 30;
   @Input() scroller: HTMLElement | Document;
+  @Input() tableMode: boolean = false;
   @Input() direction: 'vertical' | 'horizontal' = 'vertical';
+  @Input() keepOffset: boolean = false;
   @Input() debounceTime: number = 0;
   @Input() throttleTime: number = 0;
 
@@ -96,7 +121,8 @@ export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, Co
   @Input() sortable: boolean = true;
   @Input() lockAxis: 'x' | 'y' | '' = '';
   @Input() disabled: boolean = false;
-  @Input() draggable: string = '';
+  @Input() itemClass: string = 'virtual-dnd-list-item';
+  @Input() draggable: string = '.virtual-dnd-list-item';
   @Input() animation: number = 150;
   @Input() autoScroll: boolean = true;
   @Input() ghostClass: string = '';
@@ -172,16 +198,18 @@ export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, Co
 
   private differ: IterableDiffer<any>;
   constructor(
-    private el: ElementRef,
-    private render2: Renderer2,
-    private iterableDiffers: IterableDiffers
+    protected readonly el: ElementRef,
+    protected readonly zone: NgZone,
+    protected readonly render2: Renderer2,
+    protected readonly cdr: ChangeDetectorRef,
+    protected iterableDiffers: IterableDiffers
   ) {
     this.differ = this.iterableDiffers.find([]).create(null);
   }
 
   ngOnInit(): void {
-    this.initVirtual();
-    this.initSortable();
+    this.installVirtual();
+    this.installSortable();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -240,6 +268,11 @@ export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, Co
     this.lastList = [...this._model];
   }
 
+  private updateUniqueKeys() {
+    this.uniqueKeys = this._model.map((item) => getDataKey(item, this.dataKey));
+    this.virtual.option('uniqueKeys', this.uniqueKeys);
+  }
+
   public registerOnChange(fn: (_: any) => void): void {
     this.onModelChange = fn;
   }
@@ -256,7 +289,7 @@ export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, Co
   private dnd: Dnd;
   private reRendered: boolean = false;
 
-  private initSortable() {
+  private installSortable() {
     let props = {};
     for (let i = 0; i < SortableAttrs.length; i++) {
       let key = SortableAttrs[i];
@@ -397,7 +430,7 @@ export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, Co
     return offset + clientSize + 1 >= scrollSize;
   }
 
-  private initVirtual() {
+  private installVirtual() {
     this.virtual = new Virtual({
       size: this.size,
       keeps: this.keeps,
@@ -408,34 +441,46 @@ export class VirtualDndListComponent implements OnInit, OnDestroy, OnChanges, Co
       uniqueKeys: this.uniqueKeys,
       debounceTime: this.debounceTime,
       throttleTime: this.throttleTime,
-      onScroll: (event) => {
-        this.lastLength = 0;
-        if (event.top) {
-          this.handleToTop();
-        }
-        if (event.bottom) {
-          this.handleToBottom();
-        }
-      },
-      onUpdate: (range) => {
-        const rangeChanged = range.start !== this.range.start;
-        if (this.dragging && rangeChanged) {
-          this.reRendered = true;
-        }
-        this.range = range;
-        this.rangeChange.emit(range);
-
-        const padding = this.isHorizontal
-          ? `0 ${this.range.behind}px 0 ${this.range.front}px`
-          : `${this.range.front}px 0 ${this.range.behind}px`;
-        this.render2.setStyle(this.el.nativeElement, 'padding', padding);
-      },
+      onScroll: (event) => this.onScroll(event),
+      onUpdate: (range) => this.onUpdate(range),
     });
   }
 
-  private updateUniqueKeys() {
-    this.uniqueKeys = this._model.map((item) => getDataKey(item, this.dataKey));
-    this.virtual.option('uniqueKeys', this.uniqueKeys);
+  private onScroll(event: ScrollEvent) {
+    this.lastLength = 0;
+    if (event.top) {
+      this.handleToTop();
+    }
+    if (event.bottom) {
+      this.handleToBottom();
+    }
+  }
+
+  private onUpdate(range: Range) {
+    const rangeChanged = range.start !== this.range.start;
+
+    if (rangeChanged) {
+      this.reRendered = !!this.dragging;
+      this.rangeChange.emit(range);
+    }
+
+    this.range = range;
+
+    this.updateSpacerStyle();
+    this.cdr.detectChanges();
+  }
+
+  private updateSpacerStyle() {
+    this.zone.runOutsideAngular(() => {
+      const { front, behind } = this.range;
+
+      let padding = null;
+      if (!this.tableMode) {
+        padding = this.isHorizontal ? `0 ${behind}px 0 ${front}px` : `${front}px 0 ${behind}px`;
+      }
+
+      this.render2.setStyle(this.el.nativeElement, 'padding', padding);
+    });
   }
 
   private handleToTop = debounce(() => {

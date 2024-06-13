@@ -36,7 +36,7 @@ export function debounce(fn: Function, wait: number): Function {
   return result;
 }
 
-export function getDataKey(item: any, dataKey: any) {
+export function getDataKey(item: any, dataKey: string | string[]) {
   return (
     !Array.isArray(dataKey) ? dataKey.replace(/\[/g, '.').replace(/\]/g, '.').split('.') : dataKey
   ).reduce((o, k) => (o || {})[k], item);
