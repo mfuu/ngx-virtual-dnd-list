@@ -1,0 +1,3 @@
+[submodule "src/lib/core"]
+	path = src/lib/core
+	url = https://github.com/mfuu/virtual-dnd-list-core.git

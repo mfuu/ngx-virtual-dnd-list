@@ -1,42 +1,68 @@
 {
   "name": "ngx-virtual-dnd-list",
-  "version": "0.0.0",
+  "version": "13.0.5",
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng-packagr -p ./projects/ngx-virtual-dnd-list/ng-package.json",
-    "publish": "npm run build && npm publish ./dist/ngx-virtual-dnd-list",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "build": "ng build virtual-dnd-list && rm -r dist/src",
+    "publish": "npm run build && npm publish ./dist",
+    "docs:dev": "ng serve docs",
+    "docs:build": "ng build docs",
+    "core:update": "git submodule update --remote"
   },
-  "private": true,
+  "ngPackage": {
+    "lib": {
+      "entryFile": "src/public-api.ts"
+    },
+    "allowedNonPeerDependencies": [
+      "sortable-dnd"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mfuu/ngx-virtual-dnd-list.git"
+  },
+  "keywords": [
+    "ngx",
+    "angular",
+    "sort",
+    "drag",
+    "drop",
+    "draggable",
+    "sortable",
+    "virtual",
+    "virtual-list",
+    "big-data",
+    "big-list",
+    "infinite"
+  ],
+  "author": "mfuu",
+  "license": "MIT",
+  "private": false,
+  "bugs": {
+    "url": "https://github.com/mfuu/ngx-virtual-dnd-list/issues"
+  },
+  "homepage": "https://github.com/mfuu/ngx-virtual-dnd-list#readme",
+  "peerDependencies": {
+    "@angular/core": "^13.0.0"
+  },
   "dependencies": {
-    "@angular/animations": "~13.3.0",
-    "@angular/common": "~13.3.0",
-    "@angular/compiler": "~13.3.0",
-    "@angular/core": "~13.3.0",
-    "@angular/forms": "~13.3.0",
-    "@angular/platform-browser": "~13.3.0",
-    "@angular/platform-browser-dynamic": "~13.3.0",
-    "@angular/router": "~13.3.0",
-    "rxjs": "~7.5.0",
-    "sortable-dnd": "^0.6.15",
-    "tslib": "^2.3.0",
-    "zone.js": "~0.11.4"
+    "sortable-dnd": "^0.6.20"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "~13.3.11",
-    "@angular/cli": "~13.3.11",
-    "@angular/compiler-cli": "~13.3.0",
-    "@types/jasmine": "~3.10.0",
-    "@types/node": "^12.11.1",
-    "jasmine-core": "~4.0.0",
-    "karma": "~6.3.0",
-    "karma-chrome-launcher": "~3.1.0",
-    "karma-coverage": "~2.1.0",
-    "karma-jasmine": "~4.0.0",
-    "karma-jasmine-html-reporter": "~1.7.0",
+    "@angular-devkit/build-angular": "^13.0.0",
+    "@angular/animations": "^13.0.0",
+    "@angular/cli": "^13.0.0",
+    "@angular/common": "^13.0.0",
+    "@angular/compiler": "^13.0.0",
+    "@angular/compiler-cli": "^13.0.0",
+    "@angular/forms": "^13.0.0",
+    "@angular/platform-browser": "^13.0.0",
+    "@angular/platform-browser-dynamic": "^13.0.0",
+    "@angular/router": "^13.0.0",
+    "mockjs": "^1.1.0",
     "ng-packagr": "^13.0.0",
-    "typescript": "~4.6.2"
+    "rxjs": "^7.5.0",
+    "tslib": "^2.3.0",
+    "typescript": "^4.6.2",
+    "zone.js": "^0.11.4"
   }
 }

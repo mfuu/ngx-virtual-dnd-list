@@ -9,37 +9,37 @@ import {
   EmbeddedViewRef,
   ViewContainerRef,
 } from '@angular/core';
-import { getDataKey } from './utils';
+import { getDataKey, isSameValue } from './core';
 
 @Directive({
   selector: '[virtualItem]',
 })
-export class VirtualItem {
-  @Input() index: number;
+export class VirtualItem<T> {
   @Input() dataKey: string | string[];
-  @Input() dragging: string;
+  @Input() chosenKey: string;
+  @Input() dragging: boolean;
   @Input() itemClass: string;
   @Input() isHorizontal: boolean;
 
-  @Output() sizeChange = new EventEmitter();
+  @Output() sizeChange: EventEmitter<{ key: string | number; size: number }> = new EventEmitter();
 
-  private _key: string;
-  private _context: any;
+  private _key: string | number;
+  private _context: T;
   private _element: HTMLElement;
   private _viewRef: EmbeddedViewRef<any>;
   private _sizeObserver: ResizeObserver;
 
   constructor(
-    private render2: Renderer2,
-    private viewContainer: ViewContainerRef,
-    public templateRef: TemplateRef<any>
+    protected readonly render2: Renderer2,
+    protected readonly templateRef: TemplateRef<any>,
+    protected readonly viewContainerRef: ViewContainerRef
   ) {
-    this._viewRef = this.viewContainer.createEmbeddedView(templateRef);
+    this._viewRef = this.viewContainerRef.createEmbeddedView(this.templateRef);
   }
 
   @Input()
-  set virtualItem(source: any) {
-    this._context = source;
+  set virtualItem(context: T) {
+    this._context = context;
   }
 
   ngAfterViewInit(): void {
@@ -48,7 +48,7 @@ export class VirtualItem {
 
     if (!this._element) return;
 
-    this.render2.setAttribute(this._element, 'data-key', this._key);
+    this.render2.setAttribute(this._element, 'data-key', this._key as string);
     this.render2.addClass(this._element, this.itemClass);
     this.updateElementStyle();
 
@@ -62,17 +62,28 @@ export class VirtualItem {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['dragging'] && this._element) {
+    if (changes['chosenKey'] && this._element) {
       this.updateElementStyle();
+    }
+    if (changes['itemClass'] && this._element) {
+      this.updateElementClass(changes);
     }
   }
 
   ngOnDestroy(): void {
     this._sizeObserver.disconnect();
+    this._sizeObserver = null;
   }
 
   private updateElementStyle() {
-    const display = this.dragging === this._key ? 'none' : '';
+    const isChosen = isSameValue(this._key, this.chosenKey);
+    const display = this.dragging && isChosen ? 'none' : '';
     this.render2.setStyle(this._element, 'display', display);
+  }
+
+  private updateElementClass(changes: SimpleChanges) {
+    const { previousValue, currentValue } = changes['itemClass'];
+    this.render2.removeClass(this._element, previousValue);
+    this.render2.addClass(this._element, currentValue);
   }
 }
