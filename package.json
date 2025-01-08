@@ -8,14 +8,6 @@
     "docs:build": "ng build docs",
     "core:update": "git submodule update --remote"
   },
-  "ngPackage": {
-    "lib": {
-      "entryFile": "src/public-api.ts"
-    },
-    "allowedNonPeerDependencies": [
-      "sortable-dnd"
-    ]
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mfuu/ngx-virtual-dnd-list.git"

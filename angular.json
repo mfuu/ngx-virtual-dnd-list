@@ -12,7 +12,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:ng-packagr",
           "options": {
-            "project": "package.json"
+            "project": "ng-package.json"
           },
           "configurations": {
             "production": {

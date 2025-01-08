@@ -1,0 +1,8 @@
+{
+  "lib": {
+    "entryFile": "src/public-api.ts"
+  },
+  "allowedNonPeerDependencies": [
+    "sortable-dnd"
+  ]
+}
