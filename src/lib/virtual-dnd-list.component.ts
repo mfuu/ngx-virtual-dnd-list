@@ -129,7 +129,7 @@ export class VirtualDndListComponent<T>
   @ContentChild(TemplateRef) listItemTemplateRef: TemplateRef<T>;
 
   public get renderList() {
-    return this.model.slice(this.range.start, this.range.end + 1);
+    return this.modelValue.slice(this.range.start, this.range.end + 1);
   }
 
   public get isHorizontal() {
@@ -225,9 +225,9 @@ export class VirtualDndListComponent<T>
   }
 
   ngDoCheck(): void {
-    const changes = this.differ.diff(this._model);
+    const changes = this.differ.diff(this.modelValue);
     if (changes) {
-      this.writeValue(this._model);
+      this.writeValue(this.modelValue);
     }
   }
 
@@ -240,18 +240,9 @@ export class VirtualDndListComponent<T>
     return getDataKey(item, this.dataKey);
   };
 
-  private _model: T[] = [];
-  private onModelTouched = (_: T[]) => {};
-  private onModelChange = (_: T[]) => {};
-
-  public get model() {
-    return this._model;
-  }
-
-  public set model(val) {
-    this._model = val;
-    this.onModelChange(val);
-  }
+  public modelValue: T[] = [];
+  public onModelTouched = (_: T[]) => {};
+  public onModelChange = (_: T[]) => {};
 
   public registerOnChange(fn: (_: T[]) => void): void {
     this.onModelChange = fn;
@@ -263,43 +254,43 @@ export class VirtualDndListComponent<T>
 
   private lastList: T[] = [];
   public writeValue(value: T[]): void {
-    this._model = value || [];
+    this.modelValue = value || [];
 
     this.updateUniqueKeys();
     this.detectRangeUpdate();
 
     // auto scroll to the last offset
     if (this.lastLength && this.keepOffset) {
-      const index = this._model.length - this.lastLength;
+      const index = this.modelValue.length - this.lastLength;
       if (index > 0) {
         this.scrollToIndex(index);
       }
       this.lastLength = 0;
     }
 
-    this.lastList = [...this._model];
+    this.lastList = [...this.modelValue];
   }
 
   private updateUniqueKeys() {
-    this.uniqueKeys = this._model.map((item) => getDataKey(item, this.dataKey));
+    this.uniqueKeys = this.modelValue.map((item) => getDataKey(item, this.dataKey));
     this.virtual.option('uniqueKeys', this.uniqueKeys);
     this.dnd.option('uniqueKeys', this.uniqueKeys);
-    this.dnd.option('list', this._model);
+    this.dnd.option('list', this.modelValue);
   }
 
   private detectRangeUpdate() {
-    if (!this._model.length && !this.lastList.length) {
+    if (!this.modelValue.length && !this.lastList.length) {
       return;
     }
 
-    if (this._model.length === this.lastList.length) {
+    if (this.modelValue.length === this.lastList.length) {
       return;
     }
 
     let range = { ...this.range };
     if (
       this.lastList.length > this.keeps &&
-      this._model.length > this.lastList.length &&
+      this.modelValue.length > this.lastList.length &&
       this.range.end === this.lastList.length - 1 &&
       this.scrolledToBottom()
     ) {
@@ -329,7 +320,7 @@ export class VirtualDndListComponent<T>
 
     this.dnd = new Sortable(this.wrapper || this.el.nativeElement, {
       ...props,
-      list: this._model,
+      list: this.modelValue,
       uniqueKeys: this.uniqueKeys,
       onDrag: (event) => this.onSortableDrag(event),
       onDrop: (event) => this.onSortableDrop(event),
@@ -355,9 +346,9 @@ export class VirtualDndListComponent<T>
     this.dragging = false;
 
     if (event.changed) {
-      this._model = event.list;
-      this.writeValue(this._model);
-      this.onModelChange(this._model);
+      this.modelValue = event.list;
+      this.writeValue(this.modelValue);
+      this.onModelChange(this.modelValue);
     }
 
     this.onDrop.emit(event);
@@ -375,7 +366,7 @@ export class VirtualDndListComponent<T>
     }
 
     const sizes = this.virtual.sizes.size;
-    const renders = Math.min(this.keeps, this._model.length);
+    const renders = Math.min(this.keeps, this.modelValue.length);
     this.virtual.onItemResized(key, size);
 
     if (sizes === renders - 1) {
@@ -388,7 +379,7 @@ export class VirtualDndListComponent<T>
       size: this.size,
       keeps: this.keeps,
       buffer: Math.round(this.keeps / 3),
-      wrapper: this.wrapper || this.el.nativeElement,
+      wrapper: this.el.nativeElement,
       scroller: this.scroller,
       direction: this.direction,
       uniqueKeys: this.uniqueKeys,
@@ -411,7 +402,7 @@ export class VirtualDndListComponent<T>
 
   private handleToTop = debounce(() => {
     this.onTop.emit();
-    this.lastLength = this._model.length;
+    this.lastLength = this.modelValue.length;
   }, 50);
 
   private handleToBottom = debounce(() => {
