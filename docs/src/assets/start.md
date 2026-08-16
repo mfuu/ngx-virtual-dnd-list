@@ -40,13 +40,13 @@ import { Component } from '@angular/core';
         virtual-list
         [scroller]="scroller"
         [dataKey]="'id'"
-        [keeps]="30"
         [(ngModel)]="list"
         (ngModelChange)="onChange($event)"
       >
-        <ng-template let-item let-index="index">
+        <ng-template let-item let-index="index" let-key="key">
           <div class="list-item">
             <span>{{ index }}</span>
+            <span>{{ key }}</span>
             <p>{{ item.text }}</p>
           </div>
         </ng-template>

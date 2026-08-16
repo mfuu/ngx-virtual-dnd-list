@@ -26,7 +26,7 @@ import { VirtualListComponent } from 'public-api';
         class="list-wrapper"
         [(ngModel)]="list"
       >
-        <ng-template #item let-item let-index="index">
+        <ng-template #item let-item let-index="index" let-key="key">
           <div class="list-item">
             <div class="flex j-c-s">
               <span class="index">{{ item.index }}</span>

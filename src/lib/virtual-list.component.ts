@@ -19,31 +19,37 @@ import {
   ViewEncapsulation,
 } from '@angular/core';
 import { type ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import type { Group, ScrollSpeed, SortableEvent } from 'sortable-dnd';
+import Sortable, { type Group, type ScrollSpeed, type SortableEvent } from 'sortable-dnd';
 import {
+  CoreService,
   debounce,
   getDataKey,
   isEqual,
   SortableAttrs,
   VirtualAttrs,
-  VirtualSortable,
-  type DragEvent,
-  type DropEvent,
-  type Options,
+  type CoreOptions,
+  type DragEvent as CoreDragEvent,
+  type DropEvent as CoreDropEvent,
   type Range,
   type ScrollEvent,
 } from './core';
 
-export type KeyValueType = string | number;
+export type KeyValueType = any;
 
-export interface IDragEvent<T> {
+export interface RenderItem<T> {
+  item: T;
+  key: KeyValueType;
+  index: number;
+}
+
+export interface DragEvent<T> {
   key: KeyValueType;
   index: number;
   item: T;
   event: SortableEvent;
 }
 
-export interface IDropEvent<T> {
+export interface DropEvent<T> {
   key: KeyValueType;
   item: T;
   list: T[];
@@ -54,8 +60,6 @@ export interface IDropEvent<T> {
   newIndex: number;
 }
 
-let draggingItem;
-
 @Component({
   selector: 'virtual-list, [virtual-list]',
   template: `
@@ -64,9 +68,9 @@ let draggingItem;
     ></ng-container>
 
     <ng-template
-      *ngFor="let item of renderList; index as i; trackBy: trackByFn"
-      [virtualItem]="item"
-      [dataKey]="dataKey"
+      *ngFor="let render of renderList; trackBy: trackByFn"
+      [virtualItem]="render"
+      [itemKey]="render.key"
       [dragging]="dragging"
       [isHorizontal]="isHorizontal"
       (sizeChange)="onSizeChange($event)"
@@ -74,7 +78,7 @@ let draggingItem;
       <ng-container
         *ngTemplateOutlet="
           listItemTemplateRef;
-          context: { $implicit: item, index: i + range.start }
+          context: { $implicit: render.item, index: render.index, key: render.key }
         "
       ></ng-container>
     </ng-template>
@@ -86,12 +90,10 @@ let draggingItem;
     <ng-template #spacerTemplate let-offset>
       <tr *ngIf="tableMode">
         <td
-          [ngStyle]="{
-            border: 0,
-            padding: 0,
-            width: isHorizontal ? offset + 'px' : '',
-            height: isHorizontal ? '' : offset + 'px',
-          }"
+          [style.border]="0"
+          [style.padding]="0"
+          [style.width]="isHorizontal ? offset + 'px' : ''"
+          [style.height]="isHorizontal ? '' : offset + 'px'"
         ></td>
       </tr>
     </ng-template>
@@ -110,7 +112,7 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
   @Input() keeps: number = 30;
   @Input() buffer: number;
   @Input() wrapper: HTMLElement;
-  @Input() scroller: HTMLElement | Document | Window;
+  @Input() scroller: HTMLElement | Document;
   @Input() tableMode: boolean = false;
   @Input() direction: 'vertical' | 'horizontal' = 'vertical';
   @Input() keepOffset: boolean = false;
@@ -120,7 +122,7 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
   @Input() delay: number;
   @Input() group: string | Group;
   @Input() handle: string | ((event: Event & (TouchEvent | MouseEvent)) => boolean);
-  @Input() dataKey: string;
+  @Input() dataKey: string | ((item: T) => KeyValueType);
   @Input() sortable: boolean = true;
   @Input() lockAxis: 'x' | 'y' | '' = '';
   @Input() disabled: boolean = false;
@@ -140,14 +142,18 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
   @Output() onTop = new EventEmitter();
   @Output() onBottom = new EventEmitter();
   @Output() onScroll = new EventEmitter<ScrollEvent>();
-  @Output() onDrag: EventEmitter<IDragEvent<T>> = new EventEmitter();
-  @Output() onDrop: EventEmitter<IDropEvent<T>> = new EventEmitter();
+  @Output() onDrag: EventEmitter<DragEvent<T>> = new EventEmitter();
+  @Output() onDrop: EventEmitter<DropEvent<T>> = new EventEmitter();
   @Output() onRangeChange: EventEmitter<Range> = new EventEmitter();
 
   @ContentChild(TemplateRef) listItemTemplateRef: TemplateRef<T>;
 
   public get renderList() {
-    return this.modelValue.slice(this.range.start, this.range.end + 1);
+    return this.modelValue.slice(this.range.start, this.range.end + 1).map((item, i) => ({
+      item,
+      index: this.range.start + i,
+      key: this.getItemKey(item),
+    }));
   }
 
   public get isHorizontal() {
@@ -158,28 +164,28 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
    * Get the size of the current item by data key
    */
   public getSize(key: KeyValueType) {
-    return this.VS.call('getSize', key);
+    return this.core.virtual.getSize(key);
   }
 
   /**
    * Get the current scroll height
    */
   public getOffset() {
-    return this.VS.call('getOffset');
+    return this.core.virtual.getOffset();
   }
 
   /**
    * Get all scroll size (scrollHeight or scrollWidth)
    */
   public getScrollSize() {
-    return this.VS.call('getScrollSize');
+    return this.core.virtual.getScrollSize();
   }
 
   /**
    * Get the scroller's client viewport size (width or height)
    */
   public getClientSize() {
-    return this.VS.call('getClientSize');
+    return this.core.virtual.getClientSize();
   }
 
   /**
@@ -188,7 +194,7 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
   public scrollToKey(key: KeyValueType, align?: 'top' | 'bottom' | 'auto') {
     const index = this.uniqueKeys.indexOf(key);
     if (index > -1) {
-      this.VS.call('scrollToIndex', index, align);
+      this.core.virtual.scrollToIndex(index, align);
     }
   }
 
@@ -196,21 +202,21 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
    * Scroll to the specified index position
    */
   public scrollToIndex(index: number, align?: 'top' | 'bottom' | 'auto') {
-    this.VS.call('scrollToIndex', index, align);
+    this.core.virtual.scrollToIndex(index, align);
   }
 
   /**
    * Scroll to the specified offset left/top
    */
   public scrollToOffset(offset: number) {
-    this.VS.call('scrollToOffset', offset);
+    this.core.virtual.scrollToOffset(offset);
   }
 
   /**
    * Scroll to bottom of list
    */
   public scrollToBottom() {
-    this.VS.call('scrollToBottom');
+    this.core.virtual.scrollToBottom();
   }
 
   private differ: IterableDiffer<any>;
@@ -231,7 +237,7 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
   ngOnChanges(changes: SimpleChanges): void {
     [...VirtualAttrs, ...SortableAttrs].forEach((key) => {
       if (key in changes) {
-        this.VS?.option(key as keyof Options<KeyValueType>, this[key]);
+        this.core?.option(key as keyof CoreOptions<KeyValueType>, this[key]);
       }
     });
   }
@@ -244,11 +250,11 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
   }
 
   ngOnDestroy(): void {
-    this.VS.destroy();
+    this.core.destroy();
   }
 
-  public trackByFn = (_: number, item: T) => {
-    return getDataKey(item, this.dataKey);
+  public trackByFn = (_: number, item: RenderItem<T>) => {
+    return item.key;
   };
 
   public modelValue: T[] = [];
@@ -286,9 +292,24 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
     this.lastListLength = this.modelValue.length;
   }
 
+  private getItemKey(item: T) {
+    if (typeof this.dataKey === 'function') {
+      return this.dataKey(item);
+    }
+
+    return getDataKey(item, this.dataKey);
+  }
+
   private updateUniqueKeys() {
-    this.uniqueKeys = this.modelValue.map((item) => getDataKey(item, this.dataKey));
-    this.VS?.option('uniqueKeys', this.uniqueKeys);
+    const len = this.modelValue.length;
+    const keys = new Array(len);
+
+    for (let i = 0; i < len; i++) {
+      keys[i] = this.getItemKey(this.modelValue[i]);
+    }
+
+    this.uniqueKeys = keys;
+    this.core?.option('uniqueKeys', this.uniqueKeys);
   }
 
   private detectRangeUpdate(oldListLength: number, newListLength: number) {
@@ -301,27 +322,27 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
       oldListLength > this.keeps &&
       newListLength > oldListLength &&
       range.end === oldListLength - 1 &&
-      this.VS?.call('isReachedBottom')
+      this.core?.virtual.isReachedBottom()
     ) {
       range.start++;
     }
 
-    this.VS?.call('updateRange', range);
+    this.core?.virtual.updateRange(range);
   }
 
   // ========================================== virtual sortable ==========================================
-  public VS: VirtualSortable<KeyValueType>;
+  public core: CoreService<KeyValueType>;
 
   public dragging: KeyValueType = '';
 
   private installVirtualSortable() {
-    const vsAttributes = [...VirtualAttrs, ...SortableAttrs].reduce((res, key) => {
+    const coreAttributes = [...VirtualAttrs, ...SortableAttrs].reduce((res, key) => {
       res[key] = this[key];
       return res;
-    }, {} as Options<KeyValueType>);
+    }, {} as CoreOptions<KeyValueType>);
 
-    this.VS = new VirtualSortable<KeyValueType>(this.el.nativeElement, {
-      ...vsAttributes,
+    this.core = new CoreService<KeyValueType>(this.el.nativeElement, {
+      ...coreAttributes,
       wrapper: this.el.nativeElement,
       scroller: this.scroller,
       uniqueKeys: this.uniqueKeys,
@@ -362,36 +383,30 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
   }
 
   public onSizeChange({ key, size }: { key: KeyValueType; size: number }) {
-    if (isEqual(key, this.dragging) || !this.VS) {
+    if (isEqual(key, this.dragging) || !this.core) {
       return;
     }
 
-    const sizes = this.VS.virtual.sizes.size;
-
-    this.VS.call('updateItemSize', key, size);
+    const sizes = this.core.virtual.sizes.size;
+    this.core.virtual.updateItemSize(key, size);
 
     if (sizes === this.keeps - 1 && this.modelValue.length > this.keeps) {
-      this.VS.call('updateRange', this.range);
+      this.core.virtual.updateRange(this.range);
     }
   }
 
-  private handleDrag(event: DragEvent<KeyValueType>) {
+  private handleDrag(event: CoreDragEvent<KeyValueType>) {
     const { key, index } = event;
     const item = this.modelValue[index];
 
-    draggingItem = item;
+    Sortable.store.draggingItem = item;
     this.dragging = key;
-
-    if (!this.sortable) {
-      this.VS.call('enableScroll', false);
-      this.VS.option('autoScroll', false);
-    }
 
     this.onDrag.emit({ ...event, item });
   }
 
-  private handleDrop(event: DropEvent<KeyValueType>) {
-    const item = draggingItem;
+  private handleDrop(event: CoreDropEvent<KeyValueType>) {
+    const item = Sortable.store.draggingItem;
     const { oldIndex, newIndex } = event;
 
     const oldList = [...this.modelValue];
@@ -405,9 +420,6 @@ export class VirtualListComponent<T> implements OnInit, OnDestroy, OnChanges, Co
       newList.splice(oldIndex, 1);
       newList.splice(newIndex, 0, item);
     }
-
-    this.VS.call('enableScroll', true);
-    this.VS.option('autoScroll', this.autoScroll);
 
     this.dragging = '';
 

@@ -8,6 +8,7 @@ import { getPageData } from '../../../shared/utils';
       <thead style="position: sticky; top: 0px;">
         <tr>
           <th style="width: 15%;">Index</th>
+          <th style="width: 15%;">Key</th>
           <th style="width: 25%;">Name</th>
           <th style="width: 60%;">Desc</th>
         </tr>
@@ -21,12 +22,13 @@ import { getPageData } from '../../../shared/utils';
         [tableMode]="true"
         [(ngModel)]="list"
       >
-        <ng-template let-item let-index="index">
+        <ng-template let-item let-index="index" let-key="key">
           <tr class="row">
             <td>
               <span class="index">#{{ item.index }}</span>
               <span class="handle">☰</span>
             </td>
+            <td>{{ key }}</td>
             <td>{{ item.name }}</td>
             <td>{{ item.desc }}</td>
           </tr>

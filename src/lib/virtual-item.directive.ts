@@ -9,19 +9,18 @@ import {
   EmbeddedViewRef,
   ViewContainerRef,
 } from '@angular/core';
-import { getDataKey, isEqual } from './core';
+import { isEqual } from './core';
 
 @Directive({
   selector: '[virtualItem]',
 })
 export class VirtualItem<T> {
-  @Input() dataKey: string | string[];
-  @Input() dragging: string;
+  @Input() itemKey: any;
+  @Input() dragging: any;
   @Input() isHorizontal: boolean;
 
   @Output() sizeChange: EventEmitter<{ key: string | number; size: number }> = new EventEmitter();
 
-  private _key: string | number;
   private _context: T;
   private _element: HTMLElement;
   private _viewRef: EmbeddedViewRef<any>;
@@ -41,19 +40,21 @@ export class VirtualItem<T> {
   }
 
   ngAfterViewInit(): void {
-    this._key = getDataKey(this._context, this.dataKey);
-    this._element = this._viewRef.rootNodes.find((item) => item.nodeType !== 8);
+    this._element = this._viewRef.rootNodes.find((item) => item.nodeType === Node.ELEMENT_NODE);
 
-    if (!this._element) return;
+    if (!this._element) {
+      console.warn('[virtualItem] requires exactly one root element.');
+      return;
+    }
 
     this.render2.setAttribute(this._element, 'role', 'item');
-    this.render2.setAttribute(this._element, 'data-key', this._key as string);
+    this.render2.setAttribute(this._element, 'data-key', this.itemKey);
     this.updateElementStyle();
 
     this._sizeObserver = new ResizeObserver(() => {
       const sizeKey = this.isHorizontal ? 'offsetWidth' : 'offsetHeight';
       const size = this._element[sizeKey];
-      this.sizeChange.emit({ key: this._key, size });
+      this.sizeChange.emit({ key: this.itemKey, size });
     });
 
     this._sizeObserver.observe(this._element);
@@ -71,8 +72,7 @@ export class VirtualItem<T> {
   }
 
   private updateElementStyle() {
-    const isDragging = isEqual(this._key, this.dragging);
-    const display = isDragging ? 'none' : '';
-    this.render2.setStyle(this._element, 'display', display);
+    const isDragging = isEqual(this.itemKey, this.dragging);
+    this.render2.setStyle(this._element, 'display', isDragging ? 'none' : '');
   }
 }

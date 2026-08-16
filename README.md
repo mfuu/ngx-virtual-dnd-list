@@ -44,13 +44,13 @@ import { Component } from '@angular/core';
         virtual-list
         [scroller]="scroller"
         [dataKey]="'id'"
-        [keeps]="30"
         [(ngModel)]="list"
         (ngModelChange)="onChange($event)"
       >
-        <ng-template let-item let-index="index">
+        <ng-template let-item let-index="index" let-key="key">
           <div class="list-item">
             <span>{{ index }}</span>
+            <span>{{ key }}</span>
             <p>{{ item.text }}</p>
           </div>
         </ng-template>
@@ -89,27 +89,27 @@ export class AppComponent {
 
 ### Required Props
 
-| **Prop**   | **Type**                  | **Description**                                                       |
-| ---------- | ------------------------- | --------------------------------------------------------------------- |
-| `data-key` | `String`                  | The unique identifier of each piece of data, in the form of `'a.b.c'` |
-| `scroller` | `HTMLElement \| Document` | Virtual list scrolling element                                        |
+| **Prop**               | **Type**                  | **Description**                             |
+| ---------------------- | ------------------------- | ------------------------------------------- |
+| `dataKey` / `Function` | `String`                  | The unique identifier of each piece of data |
+| `scroller`             | `HTMLElement \| Document` | Virtual list scrolling element              |
 
 ### Optional Props
 
 **Commonly used**
 
-| **Prop**       | **Type**                 | **Default** | **Description**                                                                                                  |
-| -------------- | ------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------- |
-| `keeps`        | `Number`                 | `30`        | The number of lines rendered by the virtual scroll                                                               |
-| `size`         | `Number`                 | `-`         | The estimated height of each piece of data, it will be automatically calculated                                  |
-| `handle`       | `Function/String`        | `-`         | Drag handle selector within list items                                                                           |
-| `group`        | `Object/String`          | `-`         | string: 'name' or object: `{ name: 'group', put: true/false, pull: true/false/'clone', revertDrag: true/false }` |
-| `direction`    | `vertical \| horizontal` |             | scroll direction                                                                                                 |
-| `lockAxis`     | `x \| y`                 | `-`         | Axis on which dragging will be locked                                                                            |
-| `tableMode`    | `Boolean`                | `false`     | Using Virtual Lists in Tabular Mode                                                                              |
-| `keepOffset`   | `Boolean`                | `false`     | When scrolling up to load data, keep the same offset as the previous scroll                                      |
-| `debounceTime` | `Number`                 | `0`         | debounce time on scroll                                                                                          |
-| `throttleTime` | `Number`                 | `0`         | throttle time on scroll                                                                                          |
+| **Prop**       | **Type**                 | **Default** | **Description**                                                                 |
+| -------------- | ------------------------ | ----------- | ------------------------------------------------------------------------------- |
+| `keeps`        | `Number`                 | `30`        | The number of lines rendered by the virtual scroll                              |
+| `size`         | `Number`                 | `-`         | The estimated height of each piece of data, it will be automatically calculated |
+| `handle`       | `Function/String`        | `-`         | Drag handle selector within list items                                          |
+| `group`        | `Object/String`          | `-`         | Drag between groups with the same group name                                    |
+| `direction`    | `vertical \| horizontal` |             | scroll direction                                                                |
+| `lockAxis`     | `x \| y`                 | `-`         | Axis on which dragging will be locked                                           |
+| `tableMode`    | `Boolean`                | `false`     | Using Virtual Lists in Tabular Mode                                             |
+| `keepOffset`   | `Boolean`                | `false`     | When scrolling up to load data, keep the same offset as the previous scroll     |
+| `debounceTime` | `Number`                 | `0`         | debounce time on scroll                                                         |
+| `throttleTime` | `Number`                 | `0`         | throttle time on scroll                                                         |
 
 **Uncommonly used**
 

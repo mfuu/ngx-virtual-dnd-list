@@ -1,6 +1,6 @@
 {
   "name": "ngx-virtual-sortable",
-  "version": "13.1.3",
+  "version": "13.2.0",
   "scripts": {
     "build": "ng build virtual-list && rm -r dist/src",
     "publish": "npm run build && npm publish ./dist",
@@ -37,7 +37,7 @@
     "@angular/core": "^13.0.0"
   },
   "dependencies": {
-    "sortable-dnd": "^0.7.2"
+    "sortable-dnd": "^0.7.3"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^13.0.0",
